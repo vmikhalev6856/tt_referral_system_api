@@ -13,8 +13,8 @@
 1. **клонируем репозиторий:**
 
    ```sh
-   git clone https://github.com/vmikhalev6856/tt_refferal_system_api.git;
-   cd tt_refferal_system_api
+   git clone https://github.com/vmikhalev6856/tt_referral_system_api.git;
+   cd tt_referral_system_api
    ```
 
 2. **создаём .env файл:**
