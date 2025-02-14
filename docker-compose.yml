@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  tt_referral_system_api_postgres:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    volumes:
+      - postgres_volume:/tt_referral_system_api_postgres/data
+    networks:
+      - tt_referral_system_api_network
+
+  tt_referral_system_api_redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    networks:
+      - tt_referral_system_api_network
+    volumes:
+      - redis_volume:/tt_referral_system_api_redis/data
+
+  
+  tt_referral_system_api:
+    build: .
+    restart: always
+    depends_on:
+      - tt_referral_system_api_postgres
+      - tt_referral_system_api_redis
+    ports:
+      - "8000:8000"
+    networks:
+      - tt_referral_system_api_network
+
+volumes:
+  postgres_volume:
+  redis_volume:
+
+networks:
+  tt_referral_system_api_network:
+    name: tt_referral_system_api_network
