@@ -37,8 +37,8 @@ package-mode = false
 [tool.ruff]
 target-version = "py313"
 line-length = 128
-exclude = ["__init__.py", "alembic"]
-ignore = ["F401", "D403", "D405", "TC004", "DOC201", "DOC402", "DOC501", "RUF001", "RUF002", "DTZ007", "DTZ005"]
+# exclude = ["__init__.py", "alembic"]
+# ignore = ["F401", "D403", "D405", "TC004", "DOC201", "DOC402", "DOC501", "RUF001", "RUF002", "DTZ007", "DTZ005"]
 
 
 [tool.ruff.lint]

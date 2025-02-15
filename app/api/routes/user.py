@@ -5,8 +5,7 @@
 copyright (c) 2025 vladislav mikhalev, all rights reserved.
 """
 
-from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Request
 
 from app.core.security import TokenType, create_jwt, verify_jwt
 from app.core.utils import get_available_verifications_count
@@ -30,10 +29,11 @@ user_router: APIRouter = APIRouter()
 async def get_registrations_available_count() -> UserRegistrationsAvailableCount:
     """получает количество доступных регистраций пользователей.
 
-    возвращает количество доступных регистраций.
+    возвращает количество доступных регистраций
 
-    возвращает:
-        UserRegistrationsAvailableCount: объект, содержащий количество доступных регистраций.
+    Returns:
+        UserRegistrationsAvailableCount: объект, содержащий количество доступных регистраций
+
     """
     registrations_available_count = await get_available_verifications_count()
 
@@ -46,20 +46,24 @@ async def get_registrations_available_count() -> UserRegistrationsAvailableCount
     description="""
         регистрирует нового пользователя.\n
         для этого нужно указать email, пароль и (необязательно) реферальный код реферала.
+        если реферальный код не используется для регистрации, поле нужно заполнить значение null без ковычек.
+        регистрация доступна даже аутентифицированным пользователям.
     """,
 )
 async def register_user(
     user: RegisterUser,
     database_session: AsyncDatabaseSessionDependence,
 ) -> UserView:
-    """регистрирует нового пользователя и возвращает токены доступа и обновления.
+    """регистрирует нового пользователя и возвращает информацию о созданном пользователя в случае успеха.
 
-    аргументы:
-        user: данные для регистрации пользователя.
-        database_session: асинхронная сессия базы данных.
+    Args:
+        user (RegisterUser): объект с информацией для регистрации (email, password, referral_code (опционально))
+        database_session (AsyncDatabaseSessionDependence): зависимость, обеспечивающая наличие активной сессии с базой данных
+            для сохранения нового пользователя
 
-    возвращает:
-        UserView: представление зарегистрированного пользователя.
+    Returns:
+        UserView: объект с информацией о зарегистрированном пользователе
+
     """
     return await create_user(user, database_session)
 
@@ -83,27 +87,19 @@ async def login_user(
 ) -> JWTsPair:
     """аутентифицирует пользователя и возвращает токены доступа и обновления.
 
-    аргументы:
-        user: данные для аутентификации (email и пароль).
-        database_session: асинхронная сессия базы данных.
-        request: объект запроса для извлечения данных клиента.
+    Args:
+        user (LoginUser): данные для аутентификации (email и пароль).
+        database_session (AsyncDatabaseSessionDependence): зависимость, обеспечивающая наличие активной сессии с базой данных
+        request (Request): объект запроса для выдачи более безопасных токенов
 
-    возвращает:
-        JWTsPair: пару токенов jwt (доступа и обновления).
+    Returns:
+        JWTsPair: пару токенов jwt (доступа и обновления)
 
-    исключения:
-        HTTPException: если аутентификация не удалась из-за неверных учетных данных.
     """
-    authenticated_user: UserView | None = await authenticate_user(
+    authenticated_user = await authenticate_user(
         user,
         database_session,
     )
-
-    if not authenticate_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="invalid email or password",
-        )
 
     return JWTsPair(
         access_token=create_jwt(authenticated_user.id, TokenType.ACCESS, request),
@@ -120,7 +116,7 @@ async def login_user(
         токен доступа используется для аутентификации, и когда он истечет,\n
         новая пара может быть выдана с использованием токена обновления.\n
         после получения ответа с парой токенов, скопируйте токен доступа\n
-        и вставьте его в форму авторизации для доступа к защищенным эндпоинтам.
+        и вставьте его в форму авторизации для доступа к защищенным эндпоинтам
     """,
 )
 async def refresh_login_user(
@@ -130,13 +126,14 @@ async def refresh_login_user(
 ) -> JWTsPair:
     """обновляет токены пользователя с использованием токена обновления.
 
-    аргументы:
-        token: токен обновления.
-        redis: зависимость от Redis.
-        request: объект запроса для извлечения данных клиента.
+    Args:
+        token (RefreshLoginUser): токен обновления
+        redis (RedisDependence): зависимость от Redis
+        request (Request): объект запроса для извлечения данных клиента
 
-    возвращает:
-        JWTsPair: пару токенов jwt (доступа и обновления).
+    Returns:
+        JWTsPair: пару токенов jwt (доступа и обновления)
+
     """
     redis_key = f"revoked:{token.refresh_token}"
 
@@ -162,42 +159,41 @@ async def logout_user(
     _: CurrentAuthenticatedUserDependence,
     redis: RedisDependence,
     request: Request,
-) -> JSONResponse:
+) -> None:
     """аннулирует текущий токен доступа пользователя.
 
-    добавляет токен в список отозванных в Redis.
+    добавляет токен в список отозванных в redis
 
-    возвращает:
-        JSONResponse: подтверждение аннулирования токена.
+    Raises:
+        HTTPException: возвращает 200 с сообщением об успешном выходе из системы
+
     """
     redis_key = f"revoked:{request.headers.get('authorization')}"
-    await redis.setex(redis_key, 15 * 60, request.headers.get("authorization"))
+    await redis.setex(redis_key, 60 * 60, request.headers.get("authorization"))
 
-    return JSONResponse(
-        {"success": f"revoked {request.headers.get('authorization')}"},
-        200,
-    )
+    raise HTTPException(200, detail="выход из системы, токен авторизации аннулирован")
 
 
 @user_router.get(
     "/referrals",
-    summary="получить информацию о рефералах",
+    summary="получить информацию о пользователе и список его рефералов",
     description="""
-        возвращает список рефералов.\n
-        для этого пользователь должен быть авторизован.
+        возвращает информацию о пользователе и  список рефералов.\n
+        для этого пользователь должен быть авторизован
     """,
 )
 async def get_user_referrals(
     user: CurrentAuthenticatedUserDependence,
     database_session: AsyncDatabaseSessionDependence,
 ) -> UserReferrals:
-    """возвращает список рефералов пользователя.
+    """возвращает информацию о пользователе и  список рефералов.
 
-    аргументы:
-        user: текущий авторизованный пользователь.
-        database_session: асинхронная сессия базы данных.
+    Args:
+        user (CurrentAuthenticatedUserDependence): зависимость, обеспечивающая наличие авторизованного пользователя
+        database_session (AsyncDatabaseSessionDependence): зависимость, обеспечивающая наличие активной сессии с базой данных
 
-    возвращает:
-        UserReferrals: список рефералов пользователя.
+    Returns:
+        UserReferrals: информация о пользователе и список рефералов
+
     """
     return await get_user_refferals(user, database_session)

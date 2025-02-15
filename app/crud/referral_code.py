@@ -16,8 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.config import settings
-from app.models import ReferralCode, User
+from app.models import ReferralCode
 from app.models.referral_code import ReferralCodeCreate
 from app.models.user import UserView
 
@@ -32,14 +31,17 @@ async def create_referral_code(
 
     сохраняет его в базе данных и кэширует в redis с заданным временем истечения срока.
 
-    args:
-        user (userview): пользователь, для которого создается реферальный код.
-        database_session (asyncsession): асинхронная сессия для работы с базой данных.
-        code_lifetime (referralcodecreate): время жизни реферального кода в часах.
+    Args:
+        user (userview): пользователь, для которого создается реферальный код
+        database_session (asyncsession): асинхронная сессия для работы с базой данных
+        code_lifetime (referralcodecreate): время жизни реферального кода в часах
         redis (redis): экземпляр redis для кэширования.
 
-    returns:
-        referralcode: созданный реферальный код.
+    Returns:
+        referralcode: созданный реферальный код
+
+    Raises:
+        HTTPException: сообщение об ошибке при создании кода
 
     """
     redis_key: str = f"referrer:{user.email}"
@@ -87,13 +89,13 @@ async def delete_referral_code(
 ) -> str:
     """удаляет реферальный код для пользователя из базы данных и Redis.
 
-    args:
-        user (UserView): пользователь, для которого удаляется реферальный код.
-        database_session (AsyncSession): сессия для работы с базой данных.
-        redis (Redis): экземпляр Redis для удаления кэша.
+    Args:
+        user (UserView): пользователь, для которого удаляется реферальный код
+        database_session (AsyncSession): сессия для работы с базой данных
+        redis (Redis): экземпляр Redis для удаления кэша
 
-    returns:
-        str: сообщение об успешном удалении.
+    Raises:
+        HTTPException: сообщение об успешном удалении.
 
     """
     redis_key: str = f"referrer:{user.email}"
@@ -104,5 +106,6 @@ async def delete_referral_code(
         await database_session.delete(existing_code)
         await database_session.commit()
 
-        return "реферальный код успешно удален"
-    return "нет активного реферального кода"
+        raise HTTPException(status.HTTP_200_OK, "реферальный код успешно удален")
+
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "нет активного реферального кода")

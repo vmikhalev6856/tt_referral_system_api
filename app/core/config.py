@@ -1,6 +1,6 @@
 """модуль настроек приложения.
 
-модуль определяет настройки приложения, используя pydantic для управления переменными окружения.
+модуль определяет настройки приложения, используя pydantic для управления переменными окружения
 
 copyright (c) 2025 vladislav mikhalev, all rights reserved.
 """
@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     """класс настроек приложения.
 
     этот класс определяет все параметры конфигурации, требующиеся для приложения,
-    которые извлекаются из переменных окружения.
+    которые извлекаются из переменных окружения
     """
 
     model_config: SettingsConfigDict = SettingsConfigDict(
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
     SIGNING_ALGORITHM: str
-    ACCESS_TOKEN_TIMEDELTA: timedelta = timedelta(minutes=15)
+    ACCESS_TOKEN_TIMEDELTA: timedelta = timedelta(minutes=60)
     REFRESH_TOKEN_TIMEDELTA: timedelta = timedelta(days=3)
 
     TIMEZONE: str
@@ -55,10 +55,11 @@ class Settings(BaseSettings):
         """формирует uri для подключения к базе данных sqlalchemy.
 
         это свойство динамически генерирует uri для подключения к базе данных,
-        используя конфигурационные данные для подключения к postgres.
+        используя конфигурационные данные для подключения к postgres
 
-        возвращает:
+        Returns:
             PostgresDsn: отформатированный uri базы данных, подходящий для sqlalchemy.
+
         """
         return MultiHostUrl.build(
             scheme="postgresql+asyncpg",

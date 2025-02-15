@@ -37,7 +37,7 @@ class RefreshLoginUser(SQLModel):
 
 
 class RegisterUser(LoginUser):
-    referral_code: str | None = None
+    referral_code: str | None = Field(regex=r"^[a-zA-Z0-9]{16}$")
 
 
 class UserReferrals(UserView):
@@ -51,7 +51,3 @@ class UserRegistrationsAvailableCount(SQLModel):
 
 class UserEmail(SQLModel):
     email: EmailStr
-
-
-class UserReferralCode(UserEmail):
-    referral_code: str | None

@@ -14,8 +14,9 @@ from app.core.config import settings
 async def get_redis() -> Redis:
     """возвращает подключение к redis.
 
-    возвращает:
-        redis: подключение к redis.
+    Returns:
+        redis: подключение к redis
+
     """
     return Redis.from_url(
         f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",

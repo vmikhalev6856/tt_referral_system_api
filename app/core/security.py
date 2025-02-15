@@ -23,7 +23,7 @@ from app.models.jwt import JWT, JWTPayload
 class TokenType(StrEnum):
     """перечисление типов токенов.
 
-    это перечисление определяет два типа токенов: access и refresh.
+    это перечисление определяет два типа токенов: access и refresh
     """
 
     ACCESS = "access"
@@ -42,13 +42,14 @@ def create_jwt(
 
     эта функция создает новый jwt-токен для указанного пользователя с определенным типом токена.
 
-    аргументы:
+    Args:
         subject_id (uuid): идентификатор субъекта (пользователя)
         token_type (tokentype): тип токена (access или refresh)
         request (request): объект запроса для получения user-agent
 
-    возвращает:
+    Returns:
         jwt: объект со сгенерированным токеном
+
     """
     token_subject_user_agent: str | None = request.headers.get("User-Agent")
 
@@ -81,22 +82,23 @@ async def verify_jwt(
     эта функция проверяет jwt-токен на предмет его отозвания, истечения срока действия,
     а также соответствие типа токена и user-agent.
 
-    аргументы:
+    Args:
         token (str): jwt-токен
         token_type (tokentype): тип токена (access или refresh)
         request (request): объект запроса для получения user-agent
         redis (redis): экземпляр redis для проверки отозванных токенов
 
-    возвращает:
+    Returns:
         jwtpayload: данные из токена
 
-    выбрасывает:
-        httpexception: если токен отозван, истек или некорректен
+    Raises:
+        HTTPException: если токен отозван, истек или некорректен
+
     """
     if await redis.get(f"revoked:bearer jwt {token}"):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
-            "token revoked",
+            "токен отозван",
         )
 
     try:
@@ -111,25 +113,25 @@ async def verify_jwt(
     except PyJWTError as jwt_error:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            f"could not validate token credentials: {jwt_error}",
+            f"невалидный токен: {jwt_error}",
         ) from jwt_error
 
     if token_payload.token_type != token_type:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "invalid token type.",
+            "передан неверный тип токена",
         )
 
     if datetime.strptime(token_payload.token_expiration, "%Y-%m-%d %H:%M:%S.%f") <= datetime.now():
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "token has expired.",
+            "токен истек",
         )
 
     if token_payload.token_subject_user_agent != request.headers.get("User-Agent"):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "invalid token user agent.",
+            "токен был выпущен с использованием другого user-agent",
         )
 
     return token_payload
@@ -140,12 +142,13 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
     эта функция проверяет, совпадает ли введенный пароль с хешированным паролем.
 
-    аргументы:
+    Args:
         password (str): введенный пароль
         hashed_password (str): хешированный пароль
 
-    возвращает:
+    Returns:
         bool: True, если пароли совпадают, иначе False
+
     """
     return password_crypt_context.verify(password, hashed_password)
 
@@ -155,11 +158,12 @@ def get_password_hash(password: str) -> str:
 
     эта функция хеширует переданный пароль с использованием bcrypt.
 
-    аргументы:
+    Args:
         password (str): пароль
 
-    возвращает:
+    Returns:
         str: хешированный пароль
+
     """
     return password_crypt_context.hash(password)
 

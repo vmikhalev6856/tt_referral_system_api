@@ -6,7 +6,6 @@ copyright (c) 2025 vladislav mikhalev, all rights reserved.
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlmodel import select
@@ -17,26 +16,30 @@ from app.models import ReferralCode
 from app.models.user import LoginUser, RegisterUser, User, UserReferrals, UserView
 
 
-async def create_user(user: RegisterUser, database_session: AsyncSession) -> UserView:
-    """создает нового пользователя в базе данных с возможностью указания реферального кода.
+async def create_user(
+    user: RegisterUser,
+    database_session: AsyncSession,
+) -> UserView:
+    """создает нового пользователя в базе данных, основываясь на переданных данных для регистрации.
 
-    аргументы:
-        user: данные для регистрации пользователя (email, пароль, опционально - реферальный код).
-        database_session: асинхронная сессия базы данных.
+    Args:
+        user (RegisterUser): данные для регистрации пользователя (email, password, referral_code (опционально))
+        database_session (AsyncSession): асинхронная сессия базы данных
 
-    возвращает:
-        userview: объект, содержащий информацию о созданном пользователе.
+    Returns:
+        UserView: объект, содержащий информацию о созданном пользователе
 
-    выбрасывает:
-        httpexception: если пользователь с таким email уже существует (403 forbidden)
-        или указан неверный реферальный код (400 bad request).
+    Raises:
+        HTTPException: если пользователь с таким email уже существует или email не прошел проверку (403 forbidden).
+            а так же если указан неверный реферальный код (400 bad request)
+
     """
     existing_user = await database_session.scalar(select(User).where(User.email == user.email))
 
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="user with this email already exists.",
+            detail="такой пользователь уже есть, email занят",
         )
 
     if not await check_email_validity(user.email):
@@ -51,10 +54,11 @@ async def create_user(user: RegisterUser, database_session: AsyncSession) -> Use
         referrer_data = await database_session.scalar(
             select(User).where(User.referral_code.has(ReferralCode.code == user.referral_code)),
         )
+
         if not referrer_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="invalid referral code (use null or correct code).",
+                detail="реферальный код отозван или введен неверно",
             )
 
     new_user = User(
@@ -63,16 +67,9 @@ async def create_user(user: RegisterUser, database_session: AsyncSession) -> Use
         referrer_id=referrer_data.id if referrer_data else None,
     )
 
-    try:
-        database_session.add(new_user)
-        await database_session.commit()
-        await database_session.refresh(new_user)
-
-    except IntegrityError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User creation failed due to a database error.",
-        ) from error
+    database_session.add(new_user)
+    await database_session.commit()
+    await database_session.refresh(new_user)
 
     return UserView.model_validate(
         new_user,
@@ -83,36 +80,43 @@ async def create_user(user: RegisterUser, database_session: AsyncSession) -> Use
 async def authenticate_user(
     user: LoginUser,
     database_session: AsyncSession,
-) -> UserView | None:
-    """проверяет учетные данные пользователя и возвращает его данные при успешной аутентификации.
+) -> UserView:
+    """аутентифицирует пользователя по логину и паролю.
 
-    аргументы:
-        user: данные пользователя для входа (email и пароль).
-        database_session: асинхронная сессия базы данных.
+    Args:
+        user (LoginUser): данные пользователя для входа (email и пароль)
+        database_session (AsyncSession): асинхронная сессия базы данных
 
-    возвращает:
-        userview | none: объект userview, если аутентификация успешна, иначе none.
+    Raises:
+        HTTPException: если аутентификация не удалась из-за неверных учетных данных
+
+    Returns:
+        UserView: объект пользователя без лишних данных
+
     """
-    existing_user = await database_session.scalar(select(User).where(User.email == user.email))
+    existing_user = await database_session.scalar(
+        select(User).where(User.email == user.email).options(joinedload(User.referral_code)),
+    )
 
-    if existing_user and verify_password(user.password, existing_user.hashed_password):
-        return UserView.model_validate(existing_user, update={"referral_code": None})
+    if not existing_user or not verify_password(user.password, existing_user.hashed_password):
+        raise HTTPException(status_code=401, detail="неверный email или пароль")
 
-    return None
+    return UserView.model_validate(existing_user)
 
 
 async def get_user_refferals(
     user: UserView,
     database_session: AsyncSession,
-) -> UserReferrals:
-    """возвращает список пользователей, зарегистрированных по реферальному коду данного пользователя.
+) -> AsyncSession:
+    """возвращает информацию о пользователе и его рефералах.
 
-    аргументы:
-        user: объект userview текущего пользователя.
-        database_session: асинхронная сессия базы данных.
+    Args:
+        user (UserView): объект userview текущего пользователя
+        database_session (AsyncSession): асинхронная сессия базы данных
 
-    возвращает:
-        userreferrals: объект с количеством и списком рефералов.
+    Returns:
+        AsyncSession: объект с количеством и списком рефералов
+
     """
     referrals = await database_session.scalars(
         select(User).where(User.referrer_id == user.id).options(joinedload(User.referral_code)),

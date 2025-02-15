@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -16,3 +17,8 @@ class ReferralCode(SQLModel, table=True):
 
 class ReferralCodeCreate(SQLModel):
     lifetime_in_hours: int = Field(ge=1)
+
+
+class ReferralCodeByEmail(SQLModel):
+    email: EmailStr
+    referral_code: str | None

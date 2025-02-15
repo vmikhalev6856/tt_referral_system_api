@@ -9,8 +9,8 @@ from fastapi import APIRouter
 
 from app.crud.referral_code import create_referral_code, delete_referral_code
 from app.dependences import AsyncDatabaseSessionDependence, CurrentAuthenticatedUserDependence, RedisDependence
-from app.models.referral_code import ReferralCode, ReferralCodeCreate
-from app.models.user import UserEmail, UserReferralCode
+from app.models.referral_code import ReferralCode, ReferralCodeByEmail, ReferralCodeCreate
+from app.models.user import UserEmail
 
 referrral_code_router: APIRouter = APIRouter()
 
@@ -20,7 +20,8 @@ referrral_code_router: APIRouter = APIRouter()
     summary="создать реферальный код",
     description="""
         создает новый реферальный код для пользователя.\n
-        для создания необходим токен авторизации в заголовке и срок действия кода в теле.
+        для создания необходим токен авторизации в заголовке и срок действия кода в теле запроса.
+        срок передается целым неотрицательным количеством часов
     """,
 )
 async def create_code(
@@ -29,18 +30,22 @@ async def create_code(
     code_lifetime: ReferralCodeCreate,
     redis: RedisDependence,
 ) -> ReferralCode:
-    """создает новый реферальный код для пользователя.
+    """создает новый реферальный код тещего аутентифицированного пользователя.
 
     создает реферальный код с указанным сроком действия и сохраняет его в базе данных.
+    бессрочный код создать нельзя
 
-    аргументы:
-        user (CurrentAuthenticatedUserDependence): текущий авторизованный пользователь.
-        database_session (AsyncDatabaseSessionDependence): асинхронная сессия базы данных.
-        code_lifetime (ReferralCodeCreate): срок действия реферального кода.
-        redis (RedisDependence): подключение к Redis.
+    Args:
+        user (CurrentAuthenticatedUserDependence): зависимость, обеспечивающая аутентификацию пользователя
+            по заголовку с токеном
+        database_session (AsyncDatabaseSessionDependence): зависимость, обеспечивающая активное
+            асинхронное соединение с базой данных
+        code_lifetime (ReferralCodeCreate): объект, содержащий срок действия реферального кода
+        redis (RedisDependence): зависимость, обеспечивающая активное подключение к redis
 
-    возвращает:
+    Returns:
         ReferralCode: созданный реферальный код.
+
     """
     return await create_referral_code(user, database_session, code_lifetime, redis)
 
@@ -50,7 +55,7 @@ async def create_code(
     summary="удалить реферальный код",
     description="""
         удаляет реферальный код для пользователя.\n
-        для удаления необходим токен авторизации в заголовке.
+        для удаления необходим токен авторизации в заголовке запроса
     """,
 )
 async def delete_code(
@@ -58,17 +63,20 @@ async def delete_code(
     database_session: AsyncDatabaseSessionDependence,
     redis: RedisDependence,
 ) -> str:
-    """удаляет реферальный код для пользователя.
+    """удаляет реферальный код аутентифицированного пользователя.
 
-    удаляет реферальный код из базы данных и Redis.
+    удаляет реферальный код из базы данных и redis
 
-    аргументы:
-        user (CurrentAuthenticatedUserDependence): текущий авторизованный пользователь.
-        database_session (AsyncDatabaseSessionDependence): асинхронная сессия базы данных.
-        redis (RedisDependence): подключение к Redis.
+    Args:
+        user (CurrentAuthenticatedUserDependence): зависимость, обеспечивающая аутентификацию пользователя
+            по заголовку с токеном
+        database_session (AsyncDatabaseSessionDependence): зависимость, обеспечивающая активное
+            асинхронное соединение с базой данных
+        redis (RedisDependence): зависимость, обеспечивающая активное подключение к redis
 
-    возвращает:
-        str: сообщение об успешном удалении.
+    Returns:
+        str: сообщение об успешном удалении
+
     """
     return await delete_referral_code(user, database_session, redis)
 
@@ -79,26 +87,33 @@ async def delete_code(
     description="""
         получает реферальный код для пользователя по его email.\n
         для этого необходимо передать email пользователя в теле запроса.
+        эндпоинт открыт для неаутентифицированных пользователей,
+        поэтому регистрация пользователя в системе неважна для избежания избыточной информации в ответе
     """,
 )
 async def get_user_referral_code_by_referral_email(
     user_email: UserEmail,
     redis: RedisDependence,
-) -> UserReferralCode:
+) -> ReferralCodeByEmail:
     """получает реферальный код пользователя по его email.
 
-    ищет в Redis реферальный код, связанный с переданным email пользователя.
+    ищет в redis реферальный код, связанный с переданным email пользователя.
+    так как эндпоинт открыт для неаутентифицированных пользователей,
+    его реализация не возвращает никакой избыточной информации
+    (например, если пользователь в системе не зарегистриван,
+    мы получим такой же ответ, как если бы у зарегистрированного пользователя не было активного кода)
 
-    аргументы:
-        user_email (UserEmail): email пользователя, для которого нужно получить реферальный код.
-        redis (RedisDependence): подключение к Redis.
+    Args:
+        user_email (UserEmail): email пользователя, для которого нужно получить реферальный код
+        redis (RedisDependence): зависимость, обеспечивающая активное подключение к redis
 
-    возвращает:
-        UserReferralCode: объект, содержащий email пользователя и его реферальный код.
+    Returns:
+        UserReferralCode: объект, содержащий email пользователя и его реферальный код
+
     """
     code = await redis.get(f"referrer:{user_email.email}")
 
-    return UserReferralCode(
+    return ReferralCodeByEmail(
         email=user_email.email,
         referral_code=code,
     )

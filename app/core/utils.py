@@ -14,16 +14,19 @@ from app.core.config import settings
 
 
 async def check_email_validity(email: EmailStr) -> bool:
-    """проверяет, является ли email действительным с использованием сервиса hunter.io (https://hunter.io/api-documentation/v2).
+    """проверяет, является ли email действительным.
 
-    аргументы:
+    используется сервис hunter.io (https://hunter.io/api-documentation/v2)
+
+    Args:
         email (emailstr): email для верификации
 
-    возвращает:
+    Returns:
         bool: true, если email действительный, иначе - false
 
-    исключения:
-        httpexception: если произошла ошибка при запросе к внешнему api
+    Raises:
+        HTTPException: если произошла ошибка при запросе к внешнему api
+
     """
     url = f"{settings.EMAIL_HUNTER_API_URL}email-verifier?email={email}&api_key={settings.EMAIL_HUNTER_API_KEY}"
 
@@ -48,13 +51,16 @@ async def check_email_validity(email: EmailStr) -> bool:
 
 
 async def get_available_verifications_count() -> int:
-    """получает количество доступных верификаций email в сервисе hunter.io (https://hunter.io/api-documentation/v2).
+    """получает количество доступных верификаций email.
 
-    возвращает:
+    используется сервис hunter.io (https://hunter.io/api-documentation/v2)
+
+    Returns:
         int: количество оставшихся верификаций
 
-    выбрасывает:
-        httpexception: если произошла ошибка при запросе к внешнему api
+    Raises:
+        HTTPException: если произошла ошибка при запросе к внешнему api
+
     """
     url = f"{settings.EMAIL_HUNTER_API_URL}account?api_key={settings.EMAIL_HUNTER_API_KEY}"
 
@@ -69,7 +75,7 @@ async def get_available_verifications_count() -> int:
                 available = verifications.get("available", 0)
                 used = verifications.get("used", 0)
 
-                return available - used
+                return int(available) - int(used)
 
             except KeyError:
                 raise HTTPException(

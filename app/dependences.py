@@ -1,6 +1,6 @@
 """модуль зависимостей для аутентификации пользователей.
 
-содержит зависимости для работы с базой данных, redis и проверки токена доступа.
+содержит зависимости для работы с базой данных, redis и проверки токена доступа
 
 copyright (c) 2025 vladislav mikhalev, all rights reserved.
 """
@@ -35,17 +35,15 @@ async def get_current_authenticated_user(
 ) -> UserView:
     """получает текущего аутентифицированного пользователя по токену доступа.
 
-    аргументы:
+    Args:
         token: заголовок с токеном авторизации.
         database_session: асинхронная сессия базы данных.
         request: объект запроса fastapi.
         redis: клиент redis для проверки токена.
 
-    возвращает:
+    Returns:
         userview: объект пользователя с обновленными данными.
 
-    выбрасывает:
-        httpexception: если токен недействителен или пользователь не найден.
     """
     token_payload: JWTPayload = await verify_jwt(token[11:], TokenType.ACCESS, request, redis)
 
