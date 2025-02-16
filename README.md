@@ -17,7 +17,7 @@
 1. **клонируем репозиторий**
 
    ```sh
-   git clone https://github.com/vmikhalev6856/tt_referral_system_api.git;
+   git clone https://github.com/vmikhalev6856/tt_referral_system_api.git &&
    cd tt_referral_system_api
    ```
 
@@ -34,7 +34,7 @@
    _в последнее время есть периодические небольшие сложности с подключением к docker regetry для получения разной служебной метаинформации, и из-за этого билд контейров может прерваться с ошибкой. в этом случае - просто выполните команду со сборкой и запуском заново_
 
    ```sh
-   docker-compose up -d;
+   docker-compose up -d &&
    docker-compose exec tt_referral_system_api poetry run alembic upgrade head
    ```
 
