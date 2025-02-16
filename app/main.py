@@ -25,12 +25,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     выполняет инициализацию redis при запуске и закрывает соединение при завершении работы
     """
     redis = await get_redis()
-    inform_host("app started with active redis connection, waiting for requests")
+    await inform_host("app started with active redis connection, waiting for requests")
 
     yield
 
     await redis.close()
-    inform_host("app stopped, redis connection closed")
+    await inform_host("app stopped, redis connection closed")
 
 
 app: FastAPI = FastAPI(
@@ -41,6 +41,7 @@ app: FastAPI = FastAPI(
         "defaultModelsExpandDepth": -1,
         "showExtensions": True,
     },
+    lifespan=lifespan,
 )
 
 app.include_router(api_router)
