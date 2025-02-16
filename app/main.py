@@ -15,6 +15,7 @@ from fastapi.openapi.utils import get_openapi
 from app.api.main import api_router
 from app.core.config import settings
 from app.core.redis import get_redis
+from app.core.utils import inform_host
 
 
 @asynccontextmanager
@@ -24,10 +25,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     выполняет инициализацию redis при запуске и закрывает соединение при завершении работы
     """
     redis = await get_redis()
+    inform_host("app started with active redis connection, waiting for requests")
 
     yield
 
     await redis.close()
+    inform_host("app stopped, redis connection closed")
 
 
 app: FastAPI = FastAPI(

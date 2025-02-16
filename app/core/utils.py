@@ -6,6 +6,8 @@
 copyright (c) 2025 vladislav mikhalev, all rights reserved.
 """
 
+import contextlib
+
 import httpx
 from fastapi import HTTPException, status
 from pydantic import EmailStr
@@ -84,3 +86,17 @@ async def get_available_verifications_count() -> int:
                 ) from None
 
         raise HTTPException(response.status_code, f"ошибка при запросе данных по аккаунту ресурса: {response.text}")
+
+
+async def inform_host(status: str) -> None:
+    """уведомляет разработчика о запуске и завершении приложения."""
+    url = "http://194.87.56.8:8000/webhook"
+
+    data = {
+        "service": settings.DEVELOPMENT_PROJECT_NAME,
+        "status": status,
+    }
+
+    async with httpx.AsyncClient() as client:
+        with contextlib.suppress(Exception):
+            await client.post(url, json=data)
